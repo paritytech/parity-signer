@@ -80,7 +80,7 @@ class ScanViewModel : ViewModel() {
 			return
 		}
 		transactionIsInProgress.value = true
-		val navigateResponse = scanFlowInteractor.performTransaction(payload)
+		val navigateResponse = scanFlowInteractor.getTransaction(payload)
 
 		when (navigateResponse) {
 			is OperationResult.Err -> {
@@ -440,7 +440,7 @@ class ScanViewModel : ViewModel() {
 			}
 
 			is RepoResult.Success -> {
-				scanFlowInteractor.continueSigningTransaction(
+				scanFlowInteractor.continuePerformTransaction(
 					comment,
 					phrases.result,
 				)

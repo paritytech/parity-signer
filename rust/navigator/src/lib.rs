@@ -41,6 +41,7 @@ pub mod screens;
 mod tests;
 
 pub use crate::error::{Error, Result};
+use crate::states::{SignResult, TransactionState};
 
 //TODO: multithread here some day!
 lazy_static! {
@@ -77,15 +78,105 @@ pub fn init_navigation(db: sled::Db, seed_names: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-/// Should be called when seed names are modified in native to synchronize data
-pub fn update_seed_names(seed_names: Vec<String>) -> Result<()> {
-    let mut navstate = STATE.lock().map_err(|_| Error::MutexPoisoned)?;
-    navstate
-        .as_mut()
-        .ok_or(Error::DbNotInitialized)?
-        .update_seed_names(seed_names);
 
-    Ok(())
+///todo dmitry add function to get transaction type and validate. It exeists - it's
+/// todo decode_sequence - but we need to add types from TransactionAction there
+/// for Example - for banana split and dyn derivations use specific function, or get_transaction() for rest
+
+/// Generate transaction from qr codes assembled data
+/// todo dmitry support all types from above todo or make many functions for each transaction type
+pub fn get_transaction(database: &sled::Db, payload: &str) -> Result<TransactionAction> {
+	//return mtransaction data??? to know which keys used to sign and transaction action
+    Ok(TransactionState::new(database, details_str)?.action()?)
+}
+
+//todo create function to validate password for key function
+
+/// sign signing type transactions or perform stub transactions
+/// //todo devide into 2 - sign and perform stub
+/// all passwords should be validated separately before and here we just signing
+/// transaction, that can be bulk, and expecting that error should never ocure
+pub fn perform_transaction(database: &sled::Db,
+												//list of seeds if needed - for sign type,
+												transaction_state: TransactionAction,
+												password: Vec<&str>,//todo pass passwords for keys
+												) -> Result<Vec<(MultiSignature, SignatureType)>> {
+	//return list of signatures
+	match transaction_state.action() {
+		transaction_parsing::TransactionAction::Sign { .. } => {
+			let mut new = transaction_state.clone();
+			new.update_seeds(secret_seed_phrase);
+			match password {
+				None => {}
+				Some(pass) => {new.password_entered(pass);}
+			}
+
+			match new.handle_sign(database) {
+				Ok(result) => {
+					match result {
+						SignResult::RequestPassword { .. } => {
+							if t.ok() {
+								// here juse return wrong password error
+								new_navstate.screen = Screen::Transaction(new);
+								new_navstate.modal = Modal::EnterPassword;
+							} else {
+								new_navstate = Navstate::clean_screen(Screen::Log);
+							}
+						}
+						SignResult::Ready { signatures } => {
+							// result
+							new_navstate.modal = Modal::SignatureReady(signatures);
+						}
+					};
+				}
+				Err(e) => {
+					// new_navstate.alert = Alert::Error;
+					// let _ = write!(&mut errorline, "{e}");
+				// 	todo pass our error displayed with str
+				}
+			}
+		}
+		transaction_parsing::TransactionAction::Stub {
+			s: _,
+			u: checksum,
+			stub: stub_nav,
+		} => match transaction_signing::handle_stub(&self.db, *checksum) { //save pending transaction to DB
+			Ok(()) => match stub_nav {
+				transaction_parsing::StubNav::AddSpecs {
+					n: network_specs_key,
+				} => {
+					// check in what we do here, we may returm type of transaction or just blank processed
+					// check if we call sign for those transactions at all from mobile end
+					new_navstate = Navstate::clean_screen(Screen::NetworkDetails(
+						network_specs_key.clone(),
+					));
+				}
+				transaction_parsing::StubNav::LoadMeta {
+					l: network_specs_key,
+				} => {
+					new_navstate = Navstate::clean_screen(Screen::NetworkDetails(
+						network_specs_key.clone(),
+					));
+				}
+				transaction_parsing::StubNav::LoadTypes => {
+					new_navstate = Navstate::clean_screen(Screen::ManageNetworks);
+				}
+			},
+			Err(e) => {
+				// new_navstate.alert = Alert::Error;
+				// let _ = write!(&mut errorline, "{e}");
+				// 	todo pass our error displayed with str
+			}
+		},
+		transaction_parsing::TransactionAction::Read { .. } => {
+		// 	do nothing
+		}
+		transaction_parsing::TransactionAction::Derivations { content: _ } => {
+			// 	do nothing
+		}
+	},
+
+	Ok(()) //todo dmitry implement
 }
 
 /// Export key info with derivations.
